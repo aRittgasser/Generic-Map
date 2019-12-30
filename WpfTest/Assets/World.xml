@@ -1,6 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 
 <LiveChartsMap xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <!--<Height>25920</Height>
+  <Width>40080</Width>-->
   <Height>2592</Height>
   <Width>4008</Width>
   <Shapes>

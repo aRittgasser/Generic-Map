@@ -20,11 +20,11 @@ namespace WpfTest.View.CustomControls
 {
     public class GenericMap : UserControl
     {
-        private readonly Canvas _map;
-        private readonly Dictionary<string, MapData> _countries;
+        private readonly Canvas _canvasMap;
+        private readonly Dictionary<string, MapCountry> _countries;
 
 
-        private LvcMap _lvcMap;
+        private Map _map;
         private Canvas _canvas;
 
 
@@ -39,18 +39,18 @@ namespace WpfTest.View.CustomControls
         public GenericMap()
         {
             _canvas = new Canvas();
-            _map = new Canvas();
+            _canvasMap = new Canvas();
             _canvas.ClipToBounds = true;
-            _map.ClipToBounds = true;
-            _canvas.Children.Add(_map);
+            _canvasMap.ClipToBounds = true;
+            _canvas.Children.Add(_canvasMap);
             Content = _canvas;
 
-            _canvas.SetBinding(WidthProperty,
-                new Binding { Path = new PropertyPath(ActualWidthProperty), Source = this });
-            _canvas.SetBinding(HeightProperty,
-                new Binding { Path = new PropertyPath(ActualHeightProperty), Source = this });
+            //_canvas.SetBinding(WidthProperty,
+            //    new Binding { Path = new PropertyPath(ActualWidthProperty), Source = this });
+            //_canvas.SetBinding(HeightProperty,
+            //    new Binding { Path = new PropertyPath(ActualHeightProperty), Source = this });
 
-            _countries = new Dictionary<string, MapData>();
+            _countries = new Dictionary<string, MapCountry>();
 
             SetCurrentValue(DefaultCountryFillProperty, new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)));
             SetCurrentValue(CountryBorderBrushProperty, new SolidColorBrush(Color.FromArgb(30, 55, 55, 55)));
@@ -78,13 +78,13 @@ namespace WpfTest.View.CustomControls
                 if (!EnableZoomingAndPanning) return;
 
                 e.Handled = true;
-                var rt = _map.RenderTransform as ScaleTransform;
+                var rt = _canvasMap.RenderTransform as ScaleTransform;
                 var p = rt == null ? 1 : rt.ScaleX;
                 p += e.Delta > 0 ? .05 : -.05;
                 p = p < 1 ? 1 : p;
                 var o = e.GetPosition(this);
-                if (e.Delta > 0) _map.RenderTransformOrigin = new Point(o.X / ActualWidth, o.Y / ActualHeight);
-                _map.RenderTransform = new ScaleTransform(p, p);
+                if (e.Delta > 0) _canvasMap.RenderTransformOrigin = new Point(o.X / ActualWidth, o.Y / ActualHeight);
+                _canvasMap.RenderTransform = new ScaleTransform(p, p);
             };
 
             MouseDown += (sender, e) =>
@@ -101,18 +101,18 @@ namespace WpfTest.View.CustomControls
                 var end = e.GetPosition(this);
                 var delta = new Point(_dragOrigin.X - end.X, _dragOrigin.Y - end.Y);
 
-                var l = Canvas.GetLeft(_map) - delta.X;
-                var t = Canvas.GetTop(_map) - delta.Y;
+                var l = Canvas.GetLeft(_canvasMap) - delta.X;
+                var t = Canvas.GetTop(_canvasMap) - delta.Y;
 
                 if (DisableAnimations)
                 {
-                    Canvas.SetLeft(_map, l);
-                    Canvas.SetTop(_map, t);
+                    Canvas.SetLeft(_canvasMap, l);
+                    Canvas.SetTop(_canvasMap, t);
                 }
                 else
                 {
-                    _map.BeginAnimation(Canvas.LeftProperty, new DoubleAnimation(l, AnimationsSpeed));
-                    _map.BeginAnimation(Canvas.TopProperty, new DoubleAnimation(t, AnimationsSpeed));
+                    _canvasMap.BeginAnimation(Canvas.LeftProperty, new DoubleAnimation(l, AnimationsSpeed));
+                    _canvasMap.BeginAnimation(Canvas.TopProperty, new DoubleAnimation(t, AnimationsSpeed));
                 }
 
 
@@ -120,7 +120,7 @@ namespace WpfTest.View.CustomControls
 
             Loaded += (sender, e) =>
             {
-                _lvcMap = getLvcMap(Source);
+                _map = GetMap(Source);
                 Draw();
             };
 
@@ -131,7 +131,7 @@ namespace WpfTest.View.CustomControls
         /// <summary>
         /// Occurs when [land click].
         /// </summary>
-        public event Action<object, MapData> LandClick;
+        public event Action<object, MapCountry> LandClick;
 
 
 
@@ -195,7 +195,7 @@ namespace WpfTest.View.CustomControls
         /// </summary>
         public static readonly DependencyProperty CountryBorderThicknessProperty = DependencyProperty.Register(
             "CountryBorderThickness", typeof(double), typeof(GenericMap), new PropertyMetadata(default(double)));
-        
+
         /// <summary>
         /// Gets or sets all Countries border thickness property
         /// </summary>
@@ -301,7 +301,7 @@ namespace WpfTest.View.CustomControls
             }
         }
 
-        
+
 
 
         /// <summary>
@@ -480,14 +480,14 @@ namespace WpfTest.View.CustomControls
         {
             _isDrawn = true;
 
-            _map.Children.Clear();
+            _canvasMap.Children.Clear();
 
             if (DesignerProperties.GetIsInDesignMode(this))
             {
-                _map.Children.Add(new TextBlock
+                _canvasMap.Children.Add(new TextBlock
                 {
                     Text = "Designer preview is not currently available",
-                    Foreground = Brushes.White,
+                    Foreground = Brushes.Red,
                     FontWeight = FontWeights.Bold,
                     FontSize = 12,
                     Effect = new DropShadowEffect
@@ -499,11 +499,9 @@ namespace WpfTest.View.CustomControls
                 return;
             }
 
-            //_lvcMap = MapResolver.Get(Source);
+            if (_map == null) return;
 
-            if (_lvcMap == null) return;
-
-            var desiredSize = new Size(_lvcMap.DesiredWidth, _lvcMap.DesiredHeight);
+            var desiredSize = new Size(_map.DesiredWidth, _map.DesiredHeight);
             var r = desiredSize.Width / desiredSize.Height;
 
             var wr = ActualWidth / desiredSize.Width;
@@ -512,47 +510,47 @@ namespace WpfTest.View.CustomControls
 
             if (wr < hr)
             {
-                _isWidthDominant = true;
-                _map.Width = ActualWidth;
-                _map.Height = _map.Width / r;
+               // _isWidthDominant = true;
+                _canvasMap.Width = ActualWidth;
+                _canvasMap.Height = _canvasMap.Width / r;
                 s = wr;
-                _originalPosition = new Point(0, (ActualHeight - _map.Height) * .5);
-                Canvas.SetLeft(_map, _originalPosition.X);
-                Canvas.SetTop(_map, _originalPosition.Y);
+                _originalPosition = new Point(0, (ActualHeight - _canvasMap.Height) * .5);
+                Canvas.SetLeft(_canvasMap, _originalPosition.X);
+                Canvas.SetTop(_canvasMap, _originalPosition.Y);
             }
             else
             {
-                _isWidthDominant = false;
-                _map.Height = ActualHeight;
-                _map.Width = r * ActualHeight;
+              //  _isWidthDominant = false;
+                _canvasMap.Height = ActualHeight;
+                _canvasMap.Width = r * ActualHeight;
                 s = hr;
-                _originalPosition = new Point((ActualWidth - _map.Width) * .5, 0d);
-                Canvas.SetLeft(_map, _originalPosition.X);
-                Canvas.SetTop(_map, _originalPosition.Y);
+                _originalPosition = new Point((ActualWidth - _canvasMap.Width) * .5, 0d);
+                Canvas.SetLeft(_canvasMap, _originalPosition.X);
+                Canvas.SetTop(_canvasMap, _originalPosition.Y);
             }
 
             var t = new ScaleTransform(s, s);
 
-            foreach (var land in _lvcMap.Data)
+            foreach (var land in _map.MapCountries)
             {
-                var p = new System.Windows.Shapes.Path
+                var countryPath = new System.Windows.Shapes.Path
                 {
                     Data = Geometry.Parse(land.Data),
                     RenderTransform = t
                 };
 
-                land.Shape = p;
+                land.Shape = countryPath;
                 _countries[land.Id] = land;
-                _map.Children.Add(p);
+                 _canvasMap.Children.Add(countryPath);
 
-                p.MouseEnter += POnMouseEnter;
-                p.MouseLeave += POnMouseLeave;
-                p.MouseMove += POnMouseMove;
-                p.MouseDown += POnMouseDown;
+                //p.MouseEnter += POnMouseEnter;
+                //p.MouseLeave += POnMouseLeave;
+                //p.MouseMove += POnMouseMove;
+                //p.MouseDown += POnMouseDown;
 
-                p.SetBinding(Shape.StrokeProperty,
+                countryPath.SetBinding(Shape.StrokeProperty,
                     new Binding { Path = new PropertyPath(CountryBorderBrushProperty), Source = this });
-                p.SetBinding(Shape.StrokeThicknessProperty,
+                countryPath.SetBinding(Shape.StrokeThicknessProperty,
                     new MultiBinding
                     {
                         Converter = new Styles.ScaleStrokeConverter(),
@@ -664,7 +662,7 @@ namespace WpfTest.View.CustomControls
 
             string name = null;
 
-           // if (LanguagePack != null) LanguagePack.TryGetValue(land.Id, out name);
+            // if (LanguagePack != null) LanguagePack.TryGetValue(land.Id, out name);
 
             /*GeoMapTooltip.GeoData = new GeoData
             {
@@ -676,8 +674,8 @@ namespace WpfTest.View.CustomControls
         private void POnMouseMove(object sender, MouseEventArgs mouseEventArgs)
         {
             var location = mouseEventArgs.GetPosition(this);
-           // Canvas.SetTop(GeoMapTooltip, location.Y + 5);
-           // Canvas.SetLeft(GeoMapTooltip, location.X + 5);
+            // Canvas.SetTop(GeoMapTooltip, location.Y + 5);
+            // Canvas.SetLeft(GeoMapTooltip, location.X + 5);
         }
 
         private Color ColorInterpolation(double weight)
@@ -720,18 +718,18 @@ namespace WpfTest.View.CustomControls
             return m * (value - p1.X) + p1.Y;
         }
 
-     
 
-        private LvcMap getLvcMap(string file)
+
+        private Map GetMap(string file)
         {
 
             var isFromResource = false;
 
-            var svgMap = new LvcMap
+            var svgMap = new Map
             {
                 DesiredHeight = 600,
                 DesiredWidth = 800,
-                Data = new List<MapData>()
+                MapCountries = new List<MapCountry>()
             };
 
             if (File.Exists(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file)))
@@ -764,19 +762,18 @@ namespace WpfTest.View.CustomControls
 
                         if (reader.Name != "MapShape") continue;
 
-                        var p = new MapData
-                        {
-                            LvcMap = svgMap
-                        };
+                        var mapCountry = new MapCountry();
+
                         reader.Read();
                         while (reader.NodeType != XmlNodeType.EndElement)
                         {
                             if (reader.NodeType != XmlNodeType.Element) reader.Read();
-                            if (reader.Name == "Id") p.Id = reader.ReadInnerXml();
-                            if (reader.Name == "Name") p.Name = reader.ReadInnerXml();
-                            if (reader.Name == "Path") p.Data = reader.ReadInnerXml();
+                            if (reader.Name == "Id") mapCountry.Id = reader.ReadInnerXml();
+                            if (reader.Name == "Name") mapCountry.Name = reader.ReadInnerXml();
+                            if (reader.Name == "Path") mapCountry.Data = reader.ReadInnerXml();
                         }
-                        svgMap.Data.Add(p);
+
+                        svgMap.MapCountries.Add(mapCountry);
                     }
                 }
 
@@ -791,93 +788,34 @@ namespace WpfTest.View.CustomControls
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-    public class ScaleStrokeConverter : IMultiValueConverter
+    public class MapCountry
     {
-        /// <summary>
-        /// Converts source values to a value for the binding target. The data binding engine calls this method when it propagates the values from source bindings to the binding target.
-        /// </summary>
-        /// <param name="values">The array of values that the source bindings in the <see cref="T:System.Windows.Data.MultiBinding" /> produces. The value <see cref="F:System.Windows.DependencyProperty.UnsetValue" /> indicates that the source binding has no value to provide for conversion.</param>
-        /// <param name="targetType">The type of the binding target property.</param>
-        /// <param name="parameter">The converter parameter to use.</param>
-        /// <param name="culture">The culture to use in the converter.</param>
-        /// <returns>
-        /// A converted value.If the method returns null, the valid null value is used.A return value of <see cref="T:System.Windows.DependencyProperty" />.<see cref="F:System.Windows.DependencyProperty.UnsetValue" /> indicates that the converter did not produce a value, and that the binding will use the <see cref="P:System.Windows.Data.BindingBase.FallbackValue" /> if it is available, or else will use the default value.A return value of <see cref="T:System.Windows.Data.Binding" />.<see cref="F:System.Windows.Data.Binding.DoNothing" /> indicates that the binding does not transfer the value or use the <see cref="P:System.Windows.Data.BindingBase.FallbackValue" /> or the default value.
-        /// </returns>
-        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-        {
-            return (double)values[0] / (double)values[1];
-        }
-
-        /// <summary>
-        /// Converts a binding target value to the source binding values.
-        /// </summary>
-        /// <param name="value">The value that the binding target produces.</param>
-        /// <param name="targetTypes">The array of types to convert to. The array length indicates the number and types of values that are suggested for the method to return.</param>
-        /// <param name="parameter">The converter parameter to use.</param>
-        /// <param name="culture">The culture to use in the converter.</param>
-        /// <returns>
-        /// An array of values that have been converted from the target value back to the source values.
-        /// </returns>
-        /// <exception cref="System.NotImplementedException"></exception>
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class MapData
-    {
-        /// <summary>Gets or sets the identifier.</summary>
-        /// <value>The identifier.</value>
         public string Id { get; set; }
 
-        /// <summary>Gets or sets the name.</summary>
-        /// <value>The name.</value>
+
         public string Name { get; set; }
 
-        /// <summary>Gets or sets the data.</summary>
-        /// <value>The data.</value>
+
         public string Data { get; set; }
 
-        /// <summary>Gets or sets the shape.</summary>
-        /// <value>The shape.</value>
+
         public object Shape { get; set; }
 
-        /// <summary>Gets or sets the LVC map.</summary>
-        /// <value>The LVC map.</value>
-        public LvcMap LvcMap { get; set; }
     }
 
-    public class LvcMap
+    public class Map
     {
-        /// <summary>Gets or sets the width of the desired.</summary>
-        /// <value>The width of the desired.</value>
+
         public double DesiredWidth { get; set; }
 
-        /// <summary>Gets or sets the height of the desired.</summary>
-        /// <value>The height of the desired.</value>
+
         public double DesiredHeight { get; set; }
 
-        /// <summary>Gets or sets the data.</summary>
-        /// <value>The data.</value>
-        public List<MapData> Data { get; set; }
+
+        public List<MapCountry> MapCountries { get; set; }
     }
 
     //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
